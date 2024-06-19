@@ -26,15 +26,13 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
   Ueberauth.
   """
   def client(opts \\ []) do
-    config =
-      :ueberauth
-      |> Application.fetch_env!(Ueberauth.Strategy.LinkedIn.OAuth)
-      |> check_credential(:client_id)
-      |> check_credential(:client_secret)
+    config = Application.get_env(:ueberauth, __MODULE__, [])
 
     @defaults
     |> Keyword.merge(config)
     |> Keyword.merge(opts)
+    |> check_credential(:client_id)
+    |> check_credential(:client_secret)
     |> OAuth2.Client.new()
     |> OAuth2.Client.put_serializer("application/json", Ueberauth.json_library())
   end
