@@ -147,13 +147,19 @@ defmodule Ueberauth.Strategy.LinkedIn do
   end
 
   defp with_client_id(opts, conn) do
-    client_id = option(conn, :client_id)
-    opts |> Keyword.put(:client_id, client_id)
+    if client_id = option(conn, :client_id) do
+      opts |> Keyword.put(:client_id, client_id)
+    else
+      opts
+    end
   end
 
   defp with_client_secret(opts, conn) do
-    client_secret = option(conn, :client_secret)
-    opts |> Keyword.put(:client_secret, client_secret)
+    if client_secret = option(conn, :client_secret) do
+      opts |> Keyword.put(:client_secret, client_secret)
+    else
+      opts
+    end
   end
 
   defp with_scopes(opts, conn) do
