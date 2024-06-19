@@ -5,10 +5,10 @@ defmodule Ueberauth.Strategy.LinkedIn do
   @user_url "https://api.linkedin.com/v2/userinfo"
 
   use Ueberauth.Strategy,
-      uid_field: :id,
-      default_scope: "openid profile email",
-      send_redirect_uri: true,
-      oauth2_module: Ueberauth.Strategy.LinkedIn.OAuth
+    uid_field: :id,
+    default_scope: "openid profile email",
+    send_redirect_uri: true,
+    oauth2_module: Ueberauth.Strategy.LinkedIn.OAuth
 
   alias Ueberauth.Auth.Info
   alias Ueberauth.Auth.Credentials
@@ -23,6 +23,8 @@ defmodule Ueberauth.Strategy.LinkedIn do
       |> with_scopes(conn)
       |> with_state_param(conn)
       |> with_redirect_uri(conn)
+      |> with_client_id(conn)
+      |> with_client_secret(conn)
 
     module = option(conn, :oauth2_module)
     redirect!(conn, apply(module, :authorize_url!, [opts]))
@@ -33,8 +35,9 @@ defmodule Ueberauth.Strategy.LinkedIn do
   """
   def handle_callback!(%Plug.Conn{params: %{"code" => code}} = conn) do
     module = option(conn, :oauth2_module)
-    args = [[code: code] |> with_redirect_uri(conn)]
-    token = apply(module, :get_token!, args)
+    params = with_redirect_uri([code: code], conn)
+    options = [options: [client_options: [] |> with_client_id(conn) |> with_client_secret(conn)]]
+    token = apply(module, :get_token!, [params, options])
 
     if token.access_token == nil do
       set_errors!(conn, [
@@ -98,7 +101,7 @@ defmodule Ueberauth.Strategy.LinkedIn do
       first_name: user["given_name"],
       last_name: user["family_name"],
       image: user["picture"],
-      email: user["email"],
+      email: user["email"]
     }
   end
 
@@ -109,7 +112,7 @@ defmodule Ueberauth.Strategy.LinkedIn do
     %Extra{
       raw_info: %{
         token: conn.private.linkedin_token,
-        user: conn.private.linkedin_user,
+        user: conn.private.linkedin_user
       }
     }
   end
@@ -121,7 +124,8 @@ defmodule Ueberauth.Strategy.LinkedIn do
       {:ok, %OAuth2.Response{status_code: 200, body: user}} ->
         put_private(conn, :linkedin_user, user)
 
-      {:ok, %OAuth2.Response{status_code: status_code, body: _body}} when status_code not in 200..299 ->
+      {:ok, %OAuth2.Response{status_code: status_code, body: _body}}
+      when status_code not in 200..299 ->
         set_errors!(conn, [error("LinkedIn API error", "Failed to fetch user data")])
 
       {:ok, %OAuth2.Response{status_code: 401, body: _body}} ->
@@ -140,6 +144,22 @@ defmodule Ueberauth.Strategy.LinkedIn do
 
   defp option(conn, key) do
     Keyword.get(options(conn), key, Keyword.get(default_options(), key))
+  end
+
+  defp with_client_id(opts, conn) do
+    if client_id = option(conn, :client_id) do
+      opts |> Keyword.put(:client_id, client_id)
+    else
+      opts
+    end
+  end
+
+  defp with_client_secret(opts, conn) do
+    if client_secret = option(conn, :client_secret) do
+      opts |> Keyword.put(:client_secret, client_secret)
+    else
+      opts
+    end
   end
 
   defp with_scopes(opts, conn) do
